@@ -22,73 +22,45 @@ jobs:
       - name: Generate Android Code
         run: flutter create . --platforms=android --org=com.rehan.listening
 
-      - name: Set Safe SDK Versions
+      - name: Master Configuration Script (Dart Native)
         run: |
-          echo "flutter.compileSdkVersion=34" >> android/local.properties
-          echo "flutter.targetSdkVersion=34" >> android/local.properties
-          echo "flutter.minSdkVersion=21" >> android/local.properties
+          cat << 'EOF' > setup.dart
+          import 'dart:io';
+          void main() {
+            // 1. Update Gradle Safely
+            var gradle = File('android/app/build.gradle');
+            var g = gradle.readAsStringSync();
+            g = g.replaceAll('flutter.minSdkVersion', '21');
+            g = g.replaceAll('flutter.compileSdkVersion', '34');
+            g = g.replaceAll('flutter.targetSdkVersion', '34');
+            gradle.writeAsStringSync(g);
 
-      - name: Inject Perfect AndroidManifest (Crash-Proof)
-        run: |
-          cat << 'EOF' > android/app/src/main/AndroidManifest.xml
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-              <uses-permission android:name="android.permission.WAKE_LOCK"/>
-              <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
-              <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
-              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
-              <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>
-              <application
-                  android:label="Listening"
-                  android:name="${applicationName}"
-                  android:icon="@mipmap/ic_launcher">
-                  <activity
-                      android:name="com.ryanheise.audioservice.AudioServiceActivity"
-                      android:exported="true"
-                      android:launchMode="singleTop"
-                      android:theme="@style/LaunchTheme"
-                      android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
-                      android:hardwareAccelerated="true"
-                      android:windowSoftInputMode="adjustResize">
-                      <meta-data
-                        android:name="io.flutter.embedding.android.NormalTheme"
-                        android:resource="@style/NormalTheme" />
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN"/>
-                          <category android:name="android.intent.category.LAUNCHER"/>
-                      </intent-filter>
-                  </activity>
-                  <service android:name="com.ryanheise.audioservice.AudioService"
-                      android:foregroundServiceType="mediaPlayback"
-                      android:exported="true">
-                      <intent-filter>
-                          <action android:name="android.media.browse.MediaBrowserService" />
-                      </intent-filter>
-                  </service>
-                  <receiver android:name="com.ryanheise.audioservice.MediaButtonReceiver"
-                      android:exported="true">
-                      <intent-filter>
-                          <action android:name="android.intent.action.MEDIA_BUTTON" />
-                      </intent-filter>
-                  </receiver>
-                  <meta-data android:name="flutterEmbedding" value="2" />
-              </application>
-              <queries>
-                  <intent>
-                      <action android:name="android.intent.action.PROCESS_TEXT"/>
-                      <data android:mimeType="text/plain"/>
-                  </intent>
-              </queries>
-          </manifest>
+            // 2. Inject AndroidManifest flawlessly
+            var manifest = File('android/app/src/main/AndroidManifest.xml');
+            var m = manifest.readAsStringSync();
+            
+            String perms = '<uses-permission android:name="android.permission.WAKE_LOCK"/>\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>\n    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>\n    <application';
+            
+            String services = '<service android:name="com.ryanheise.audioservice.AudioService" android:foregroundServiceType="mediaPlayback" android:exported="true"><intent-filter> <action android:name="android.media.browse.MediaBrowserService" /> </intent-filter></service><receiver android:name="com.ryanheise.audioservice.MediaButtonReceiver" android:exported="true"><intent-filter> <action android:name="android.intent.action.MEDIA_BUTTON" /> </intent-filter></receiver></application>';
+            
+            m = m.replaceAll('<application', perms);
+            m = m.replaceAll('.MainActivity', 'com.ryanheise.audioservice.AudioServiceActivity');
+            m = m.replaceAll('</application>', services);
+            
+            manifest.writeAsStringSync(m);
+            print('SUCCESS: Android Configuration Patched via Dart!');
+          }
           EOF
+          dart setup.dart
 
       - name: Get Dependencies
         run: flutter pub get
 
       - name: Build Debug APK
-        run: flutter build apk --debug --no-tree-shake-icons
+        run: flutter build apk --debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Listening-Premium-App
+          name: Listening-Apple-Music-App
           path: 'build/app/outputs/**/*.apk'
