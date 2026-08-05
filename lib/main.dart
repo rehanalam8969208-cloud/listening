@@ -2,19 +2,11 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:just_audio_background/just_audio_background.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-Future<void> main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  await JustAudioBackground.init(
-    androidNotificationChannelId: 'com.rehan.listening.audio',
-    androidNotificationChannelName: 'Listening App Playback',
-    androidNotificationOngoing: true,
-  );
-  
   runApp(const AppleMusicApp());
 }
 
@@ -29,7 +21,7 @@ class AppleMusicApp extends StatelessWidget {
       theme: ThemeData(
         fontFamily: 'Roboto',
         scaffoldBackgroundColor: const Color(0xFFF2F4F8),
-        primaryColor: const Color(0xFF007AFF), // Apple Blue Accent
+        primaryColor: const Color(0xFF007AFF), 
       ),
       home: const MainNavigationScreen(),
     );
@@ -57,7 +49,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   Duration _duration = Duration.zero;
   Duration _position = Duration.zero;
 
-  // Colors and Artwork
   final Color primaryDark = const Color(0xFF1C1C1E);
   final Color accentBlue = const Color(0xFF007AFF);
   final String defaultArt = "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=300&auto=format&fit=crop";
@@ -91,14 +82,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         );
         if (mounted) {
           setState(() {
-            // Block Call/WhatsApp Recordings
-            _allSongs = songs.where((s) {
-              final path = s.data.toLowerCase();
-              return s.isMusic == true && 
-                     !path.contains('call') && 
-                     !path.contains('record') && 
-                     !path.contains('whatsapp');
-            }).toList();
+            _allSongs = songs.where((s) => s.isMusic == true && !s.data.toLowerCase().contains('call') && !s.data.toLowerCase().contains('whatsapp')).toList();
             _searchResults = _allSongs;
           });
         }
@@ -122,16 +106,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   void _playSong(SongModel song) async {
     if (song.uri == null) return;
     try {
-      final audioSource = AudioSource.uri(
-        Uri.parse(song.uri!),
-        tag: MediaItem(
-          id: song.id.toString(),
-          album: song.album ?? "Local Library",
-          title: song.title,
-          artist: song.artist ?? "Unknown Artist",
-        ),
-      );
-      await _audioPlayer.setAudioSource(audioSource);
+      await _audioPlayer.setAudioSource(AudioSource.uri(Uri.parse(song.uri!)));
       _audioPlayer.play();
       if (mounted) setState(() => _currentSong = song);
     } catch (e) {
@@ -164,7 +139,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     });
   }
 
-  // APPLE STYLE FULL SCREEN PLAYER (MODAL)
   void _openFullPlayerModal() {
     if (_currentSong == null) return;
     showModalBottomSheet(
@@ -425,12 +399,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     );
   }
 
-  // GLASSMORPHISM MINI PLAYER - CLICK TO OPEN FULL PLAYER
   Widget _buildGlassMiniPlayer() {
     return Positioned(
       bottom: 12, left: 16, right: 16,
       child: GestureDetector(
-        onTap: _openFullPlayerModal, // Tap to open full screen
+        onTap: _openFullPlayerModal,
         child: ClipRRect(
           borderRadius: BorderRadius.circular(22),
           child: BackdropFilter(
@@ -453,4 +426,20 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(_currentSong!.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: primaryDark)),
-                        Text(_currentSong!.artist ?? "Unknown", maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: Color
+                        Text(_currentSong!.artist ?? "Unknown", maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: Colors.grey[600], fontSize: 11)),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(_isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded, size: 36, color: primaryDark),
+                    onPressed: () { _isPlaying ? _audioPlayer.pause() : _audioPlayer.play(); },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
