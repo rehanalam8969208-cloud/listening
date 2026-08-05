@@ -22,23 +22,29 @@ jobs:
       - name: Generate Android Code
         run: flutter create . --platforms=android --org=com.rehan.listening
 
-      - name: Master Configuration Script (Fixes Multidex & Permissions)
+      - name: Master Configuration Script (Fixes Crash & Multidex)
         run: |
           cat << 'EOF' > setup.dart
           import 'dart:io';
           void main() {
-            // 1. Update Gradle & Enable Multidex
+            // 1. Update Gradle, Enable Multidex & Add Multidex Dependency
             var gradle = File('android/app/build.gradle');
             var g = gradle.readAsStringSync();
             g = g.replaceAll('flutter.minSdkVersion', '21');
             g = g.replaceAll('flutter.compileSdkVersion', '34');
             g = g.replaceAll('flutter.targetSdkVersion', '34');
             g = g.replaceAll('defaultConfig {', 'defaultConfig {\n        multiDexEnabled true');
+            
+            // Add multidex dependency safely
+            g = g.replaceAll('dependencies {', 'dependencies {\n    implementation "androidx.multidex:multidex:2.0.1"');
             gradle.writeAsStringSync(g);
 
-            // 2. Inject AndroidManifest flawlessly
+            // 2. Inject AndroidManifest flawlessly & Set MultiDexApplication
             var manifest = File('android/app/src/main/AndroidManifest.xml');
             var m = manifest.readAsStringSync();
+            
+            // Set MultiDex Application name to prevent crash on launch
+            m = m.replaceAll('android:name="\${applicationName}"', 'android:name="androidx.multidex.MultiDexApplication"');
             
             String perms = '<uses-permission android:name="android.permission.WAKE_LOCK"/>\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>\n    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>\n    <application';
             
@@ -49,7 +55,7 @@ jobs:
             m = m.replaceAll('</application>', services);
             
             manifest.writeAsStringSync(m);
-            print('SUCCESS: Android Configuration Patched via Dart!');
+            print('SUCCESS: Multidex & Crash Fix Applied!');
           }
           EOF
           dart setup.dart
